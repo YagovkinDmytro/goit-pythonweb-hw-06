@@ -1,9 +1,11 @@
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, DeclarativeBase
+from sqlalchemy.orm import sessionmaker
 
-load_dotenv()
+
+load_dotenv(dotenv_path=Path(__file__).resolve().parent.parent / ".env")
 
 POSTGRES_USER = os.getenv("POSTGRES_USER")
 POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD")
@@ -15,7 +17,4 @@ SQLALCHEMY_DATABASE_URL = f"postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASS
 
 engine = create_engine(SQLALCHEMY_DATABASE_URL, echo=True, max_overflow=5)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-
-
-
+session = Session()
