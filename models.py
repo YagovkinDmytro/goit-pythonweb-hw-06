@@ -1,37 +1,35 @@
-import os
-from pathlib import Path
-from dotenv import load_dotenv
 from datetime import datetime
 from sqlalchemy import (
-    create_engine,
+    Table,
+    Column,
     Integer,
     String,
     ForeignKey,
     DateTime,
 )
 from sqlalchemy.orm import (
-    relationship,
-    sessionmaker,
     declarative_base,
+    relationship,
     mapped_column,
     Mapped,
 )
 
 
-load_dotenv(dotenv_path=Path(__file__).resolve().parent.parent / ".env")
-
-POSTGRES_USER = os.getenv("POSTGRES_USER")
-POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD")
-POSTGRES_HOST = os.getenv("POSTGRES_HOST")
-POSTGRES_PORT = os.getenv("POSTGRES_PORT")
-POSTGRES_DB = os.getenv("POSTGRES_DB")
-
-SQLALCHEMY_DATABASE_URL = f"postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
-
-engine = create_engine(SQLALCHEMY_DATABASE_URL, echo=True, max_overflow=5)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
 Base = declarative_base()
+
+subject_group = Table(
+    "subject_group",
+    Base.metadata,
+    Column("subject_id", Integer, ForeignKey("subjects.id"), primary_key=True),
+    Column("group_id", Integer, ForeignKey("groups.id"), primary_key=True),
+)
+
+teacher_group = Table(
+    "teacher_group",
+    Base.metadata,
+    Column("teacher_id", Integer, ForeignKey("teachers.id", ondelete="CASCADE"), primary_key=True),
+    Column("group_id", Integer, ForeignKey("groups.id", ondelete="CASCADE"), primary_key=True),
+)
 
 class Student(Base):
     __tablename__ = "students"
@@ -49,7 +47,8 @@ class Group(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(50))
     students: Mapped[list["Student"]] = relationship("Student", back_populates="group")
-    teachers: Mapped[list["Teacher"]] = relationship("Teacher", back_populates="groups")
+    subjects: Mapped[list["Subject"]] = relationship("Subject", secondary=subject_group, back_populates="groups")
+    teachers: Mapped[list["Teacher"]] = relationship("Teacher", secondary=teacher_group, back_populates="groups")
 
     def __repr__(self) -> str:
         return f"<Group(id={self.id}, name='{self.name}')>"
@@ -59,7 +58,7 @@ class Teacher(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(50))
     subjects: Mapped[list["Subject"]] = relationship("Subject", back_populates="teacher")
-    groups: Mapped[list["Group"]] = relationship("Group", back_populates="teachers")
+    groups: Mapped[list["Group"]] = relationship("Group",secondary=teacher_group, back_populates="teachers")
 
     def __repr__(self) -> str:
         return f"<Teacher(id={self.id}, name='{self.name}')>"
@@ -70,7 +69,8 @@ class Subject(Base):
     name: Mapped[str] = mapped_column(String(50))
     teacher_id: Mapped[int] = mapped_column(ForeignKey("teachers.id", ondelete="CASCADE"))
     teacher: Mapped["Teacher"] = relationship("Teacher", back_populates="subjects")
-    grades: Mapped[list["Grade"]] = relationship("Grade", back_populates="subject")
+    grades: Mapped[list["Grade"]] = relationship("Grade", back_populates="subject", cascade="all, delete-orphan")
+    groups: Mapped[list["Group"]] = relationship("Group", secondary=subject_group, back_populates="subjects")
 
     def __repr__(self) -> str:
         return f"<Subject(id={self.id}, name='{self.name}')>"
@@ -89,6 +89,5 @@ class Grade (Base):
         return f"<Grade(id={self.id}, value='{self.value}')>"
     
     
-
-# Створення таблиць у базі даних
-Base.metadata.create_all(engine)
+# # Створення таблиць у базі даних
+# Base.metadata.create_all(engine)
